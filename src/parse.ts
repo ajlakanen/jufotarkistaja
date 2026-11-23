@@ -40,6 +40,18 @@ export function repairSpacedDoi(text: string): string {
   );
 }
 
+// Osoitteen alku ja sen perässä osat, joita erottaa molemmin puolin välillä irrotettu välimerkki.
+const SPACED_URL = /\bhttps?\s*:\s*\/\s*\/\s*\S+(?:(?:\s+[-./_:?=&#%~@+](?=\s))+\s+(?=[\p{L}\d])\S+)*/giu;
+
+/**
+ * LaTeX venyttää tasatun rivin osoitetta välimerkkien kohdalta, ja PDF:stä kopioituun tekstiin jää välejä:
+ * "https : / / www . fsd . tuni . fi / fi / kvali / teoreettis - metodologiset/". Osoitteen jälkeinen teksti
+ * ei tartu mukaan, koska virkkeen päättävän pisteen edessä ei ole väliä.
+ */
+export function repairSpacedUrl(text: string): string {
+  return text.replace(SPACED_URL, (address) => address.replace(/\s+/g, ''));
+}
+
 export function findDoi(text: string): string | null {
   const m = text.match(/\b10\.\d{4,9}\/[^\s"<>]+/i);
   return m ? m[0].replace(/[.,;)]+$/, '') : null;
@@ -219,7 +231,7 @@ function splitTitle(rest: string): { title: string | null; after: string; extras
 }
 
 function parse(raw: string): ParsedReference {
-  const text = repairSpacedDoi(raw);
+  const text = repairSpacedDoi(repairSpacedUrl(raw));
   const doi = findDoi(text);
   const issn = findIssn(text);
 

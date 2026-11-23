@@ -1,5 +1,5 @@
 // Jakaa PDF:stä kopioidun lähdeluettelon yksittäisiksi lähteiksi.
-import { repairSpacedDoi } from './parse';
+import { repairSpacedDoi, repairSpacedUrl } from './parse';
 
 const HEADING = /^(lähteet|lähdeluettelo|kirjallisuus|references|reference list|bibliography|works cited)$/i;
 const PAGE_NUMBER = /^\d{1,4}$/;
@@ -99,6 +99,8 @@ export function splitReferences(text: string): string[] {
     } else {
       cur = join(cur, line);
     }
+    // Hajonnut osoite kootaan heti, jotta lähteen päättyminen osoitteeseen ja osoitteen jatkuminen tunnistuvat.
+    cur = repairSpacedUrl(cur);
     afterBlank = false;
   }
   if (cur !== null) refs.push(repairSpacedDoi(cur));
