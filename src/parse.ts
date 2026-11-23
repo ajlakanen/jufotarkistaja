@@ -28,13 +28,15 @@ const CONFERENCE_WORDS = /proceedings|conference|symposium|workshop|konferenssi/
 
 const APA_YEAR = /\((?:(\d{4})[a-z]?(?:,[^)]*)?|n\.d\.|s\.a\.|in press|painossa)\)\.?\s+/i;
 const CHICAGO_AUTHOR_DATE_YEAR = /\.\s+(\d{4})[a-z]?\.\s+/;
-const OPEN_QUOTE = /^["“]/;
+// Suomenkielisessä tekstissä lainaus myös alkaa merkillä ”.
+const OPEN_QUOTE = /^["“”]/;
 
-/** PDF hajottaa DOI:n joskus muotoon "10 . 1234 / 5678 . 9012". */
-function repairSpacedDoi(text: string): string {
+/** PDF hajottaa DOI:n joskus muotoon "10 . 1234 / 5678 . 9012", samoin sen edellä olevan "https: / / doi . org /". */
+export function repairSpacedDoi(text: string): string {
   return text.replace(
-    /\b10\s*\.\s*(\d{4,9})\s*\/\s*(\S+(?:\s+\.\s+\S+)*)/,
-    (_m, prefix: string, suffix: string) => `10.${prefix}/${suffix.replace(/\s+/g, '')}`,
+    /(\bhttps?\s*:\s*\/\s*\/\s*(?:dx\s*\.\s*)?doi\s*\.\s*org\s*\/\s*)?\b10\s*\.\s*(\d{4,9})\s*\/\s*(\S+(?:\s+\.\s+\S+)*)/i,
+    (_m, address: string | undefined, prefix: string, suffix: string) =>
+      `${(address ?? '').replace(/\s+/g, '')}10.${prefix}/${suffix.replace(/\s+/g, '')}`,
   );
 }
 
@@ -93,9 +95,15 @@ function stripTrailingParens(text: string): { text: string; parens: string[] } {
 const isMonth = (segment: string) => MONTHS.has(segment.replace(/[()]/g, '').trim().toLowerCase());
 const isUrl = (segment: string) => /^(https?:|www\.|doi:)/i.test(segment);
 
-/** "Helsinki: Tammi, 2009" → "Tammi" */
+/** "Helsinki: Tammi, 2009" → "Tammi"; "New York: ACM, lokakuu" → "ACM" */
 function publisherFrom(segment: string): string | null {
-  let p = segment.replace(/,\s*\d{4}$/, '').trim();
+  let p = segment.trim();
+  // Pilkun jälkeen vuosi, kuukausi tai molemmat ("October 2019") eivät kuulu nimeen.
+  const comma = p.lastIndexOf(',');
+  if (comma >= 0) {
+    const date = p.slice(comma + 1).replace(/\d{4}$/, '').trim();
+    if (!date || isMonth(date)) p = p.slice(0, comma).trim();
+  }
   const colon = p.lastIndexOf(': ');
   if (colon >= 0) p = p.slice(colon + 2).trim();
   return p || null;
@@ -180,7 +188,7 @@ function splitTitle(rest: string): { title: string | null; after: string; extras
   if (!text) return { title: null, after: '', extras: [] };
 
   if (OPEN_QUOTE.test(text)) {
-    const close = text[0] === '“' ? text.indexOf('”', 1) : text.indexOf('"', 1);
+    const close = text.indexOf(text[0] === '"' ? '"' : '”', 1);
     if (close > 0) {
       const title = text.slice(1, close).replace(/[.,]$/, '').trim();
       const after = text.slice(close + 1).replace(/^[.,]?\s*/, '');

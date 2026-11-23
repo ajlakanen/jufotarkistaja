@@ -1,4 +1,5 @@
 // Jakaa PDF:stä kopioidun lähdeluettelon yksittäisiksi lähteiksi.
+import { repairSpacedDoi } from './parse';
 
 const HEADING = /^(lähteet|lähdeluettelo|kirjallisuus|references|reference list|bibliography|works cited)$/i;
 const PAGE_NUMBER = /^\d{1,4}$/;
@@ -7,11 +8,21 @@ const PAGE_NUMBER = /^\d{1,4}$/;
 const PARTICLES = '(?:(?:van|von|de|del|della|di|da|dos|du|la|le|af|ten|ter|den|der)\\s+)*';
 const ORG_ABBR = '(?:\\s\\(\\p{L}{2,12}\\))?';
 const AUTHOR_START = new RegExp(
-  `^${PARTICLES}\\p{Lu}[^\\d(]{1,80}?(?:,\\s+\\p{Lu}(?:\\.|\\p{Ll})|${ORG_ABBR}\\.\\s+\\(?\\d{4}|${ORG_ABBR}\\.\\s+\\((?:n\\.d|s\\.a)|\\.\\s+["“])`,
+  `^${PARTICLES}\\p{Lu}[^\\d(]{1,80}?(?:,\\s+\\p{Lu}(?:\\.|\\p{Ll})|${ORG_ABBR}\\.\\s+\\(?\\d{4}|${ORG_ABBR}\\.\\s+\\((?:n\\.d|s\\.a)|\\.\\s+["“”])`,
   'u',
 );
 const CHAPTER_LINE = /^(?:In|Teoksessa)\s/;
 const YEAR_ONLY = /^(?:1[5-9]\d\d|20\d\d)$/;
+const YEAR = '(?:1[5-9]\\d\\d|20\\d\\d)[a-z]?';
+// Sama tekijä kuin edellisessä lähteessä: Chicago latoo tekijän paikalle pitkän viivan ("———. 2013.").
+// PDF piirtää viivan usein grafiikkana, jolloin kopioituun tekstiin jää pelkkä piste (". 2013.").
+// Osuma on viivaosuus, joka voi olla tyhjä.
+const DASH = '(?:[—–―⸺⸻_-]\\s*)';
+const SAME_AUTHOR = new RegExp(
+  `^(?:(?:[⸺⸻]\\s*|${DASH}{2,})(?=[.,]\\s)|${DASH}?(?=\\.\\s+(?:${YEAR}\\.\\s|["“”])))`,
+);
+/** Lähteen alun tekijät tekijä–vuosi-muodossa: "Virtanen, Anna ja Lauri Niemi. 2019." */
+const LEADING_AUTHORS = new RegExp(`^([^"“”()]{1,300}?)\\.\\s+(?:${YEAR}|n\\.d|s\\.a)\\.`);
 const LIST_MARKER = /^(?:\[\d{1,3}\]|\(?\d{1,3}[.)]|[•·▪◦*–-])\s+/;
 
 /**
@@ -20,13 +31,15 @@ const LIST_MARKER = /^(?:\[\d{1,3}\]|\(?\d{1,3}[.)]|[•·▪◦*–-])\s+/;
  * eivät kelpaa: tekijäosassa ei ole muita lukuja kuin vuosiluku.
  */
 function startsReference(line: string): boolean {
+  if (SAME_AUTHOR.test(line)) return true;
   if (CHAPTER_LINE.test(line) || !AUTHOR_START.test(line)) return false;
   const firstNumber = line.match(/\d+/);
   if (!firstNumber || YEAR_ONLY.test(firstNumber[0])) return true;
   // Muu luku kelpaa vain, jos tekijäosa on jo päättynyt ennen sitä (koko lähde yhdellä rivillä).
   return /\.\s|["“]/.test(line.slice(0, firstNumber.index));
 }
-const HAS_YEAR = /\b(1[5-9]\d\d|20\d\d)\b|n\.d\.|s\.a\./;
+// Saman tekijän saman vuoden lähteissä vuoden perässä on kirjain ("2020a").
+const HAS_YEAR = /\b(1[5-9]\d\d|20\d\d)[a-z]?\b|n\.d\.|s\.a\./;
 const TERMINAL = /[.!?”")\]]$/;
 /** Lähde päättyy osoitteeseen (APA:ssa osoitteen perässä ei ole pistettä). */
 const URL_END = /(?:^|\s)(?:https?:\/\/|doi\.org\/|www\.)\S+$/;
@@ -37,6 +50,13 @@ const ended = (cur: string) => TERMINAL.test(cur) || URL_END.test(cur);
 const complete = (cur: string) => HAS_YEAR.test(cur) && ended(cur);
 const continuesUrl = (cur: string, line: string) =>
   URL_TAIL.test(cur) && (!/\s/.test(line) || line.startsWith('//'));
+
+/** Korvaa saman tekijän viivan (tai siitä jääneen tyhjän) edellisen lähteen tekijöillä. */
+function withRepeatedAuthors(line: string, previous: string): string {
+  const dashes = SAME_AUTHOR.exec(line);
+  const authors = dashes && LEADING_AUTHORS.exec(previous)?.[1];
+  return dashes && authors ? authors + line.slice(dashes[0].length) : line;
+}
 
 function join(cur: string, line: string): string {
   if (continuesUrl(cur, line)) return cur + line;
@@ -74,13 +94,13 @@ export function splitReferences(text: string): string[] {
       (ended(cur) && startsReference(line) && (afterBlank || HAS_YEAR.test(cur))) ||
       (complete(cur) && afterBlank && !continuesUrl(cur, line))
     ) {
-      refs.push(cur);
-      cur = line;
+      refs.push(repairSpacedDoi(cur));
+      cur = withRepeatedAuthors(line, cur);
     } else {
       cur = join(cur, line);
     }
     afterBlank = false;
   }
-  if (cur !== null) refs.push(cur);
+  if (cur !== null) refs.push(repairSpacedDoi(cur));
   return refs;
 }

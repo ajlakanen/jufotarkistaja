@@ -1,7 +1,7 @@
 // Crossref-asiakas: teoksen tunnistus DOI:lla tai koko viitteellä.
 // Kutsuihin ei liitetä sähköpostiosoitetta eikä muuta käyttäjätietoa.
 import { HttpError } from './http';
-import { normalizeText, titleInReference } from './normalize';
+import { decodeEntities, normalizeText, titleInReference } from './normalize';
 import type { CrossrefApi, CrossrefWork, FetchJson, ParsedReference } from './types';
 
 const CROSSREF_WORKS = 'https://api.crossref.org/works';
@@ -31,7 +31,9 @@ export function workKind(crossrefType: string): WorkKind {
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
-const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+/** Merkkijonot entiteetit purettuina: Crossref palauttaa nimet HTML-muodossa ("&amp;"). */
+const strings = (v: unknown): string[] =>
+  (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').map(decodeEntities) : []);
 
 /** Crossrefin teostietue; null, jos DOI tai otsikko puuttuu. */
 export function parseWork(raw: unknown): CrossrefWork | null {
@@ -49,9 +51,9 @@ export function parseWork(raw: unknown): CrossrefWork | null {
     type: typeof raw.type === 'string' ? raw.type : '',
     containerTitles: strings(raw['container-title']),
     issns: strings(raw.ISSN),
-    publisher: typeof raw.publisher === 'string' ? raw.publisher : null,
+    publisher: typeof raw.publisher === 'string' ? decodeEntities(raw.publisher) : null,
     year: typeof year === 'number' ? year : null,
-    eventName: typeof eventName === 'string' ? eventName : null,
+    eventName: typeof eventName === 'string' ? decodeEntities(eventName) : null,
   };
 }
 

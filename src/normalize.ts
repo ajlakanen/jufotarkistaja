@@ -34,3 +34,14 @@ export function titleInReference(title: string, raw: string): boolean {
   const t = normalizeText(title);
   return t.length >= 10 && normalizeText(raw).includes(t);
 }
+
+const NAMED_ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: '\u00a0' };
+
+/** Purkaa HTML-entiteetit: Crossrefin nimissä on "Languages &amp; Applications". Tuntematon entiteetti säilyy. */
+export function decodeEntities(s: string): string {
+  return s.replace(/&(?:#(\d{1,7})|#x([0-9a-f]{1,6})|([a-z]+));/gi, (entity: string, dec?: string, hex?: string, name?: string) => {
+    if (name) return NAMED_ENTITIES[name.toLowerCase()] ?? entity;
+    const code = dec ? Number(dec) : parseInt(hex!, 16);
+    return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : entity;
+  });
+}

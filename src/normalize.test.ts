@@ -1,4 +1,4 @@
-import { normalizeChannelName, normalizeText, titleInReference } from './normalize';
+import { decodeEntities, normalizeChannelName, normalizeText, titleInReference } from './normalize';
 
 it.each([
   ['Qualitative Research in Psychology', 'qualitative research in psychology'],
@@ -25,4 +25,10 @@ it('titleInReference', () => {
   expect(titleInReference('Using Thematic Analysis in Psychology', raw)).toBe(true);
   expect(titleInReference('Tutki, lue, kirjoita ja ajattele!', 'Hirsjärvi, S. (2009). Tutki ja kirjoita. Tammi.')).toBe(false);
   expect(titleInReference('Editorial', 'Smith, J. (2020). Editorial. Nature, 1, 1.')).toBe(false); // alle 10 merkkiä
+});
+
+it('decodeEntities purkaa nimetyt ja numeeriset entiteetit, muu teksti säilyy', () => {
+  expect(decodeEntities('Languages &amp; Applications')).toBe('Languages & Applications');
+  expect(decodeEntities('&lt;i&gt;x&lt;/i&gt; &quot;a&quot; &apos;b&apos; &#39;c&#x27; &#228;&nbsp;z')).toBe('<i>x</i> "a" \'b\' \'c\' ä\u00a0z');
+  expect(decodeEntities('AT&T; R&D &tuntematon; &#99999999;')).toBe('AT&T; R&D &tuntematon; &#99999999;');
 });
