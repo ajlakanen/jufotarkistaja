@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="fi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Tarkista, mitkä lähdeluettelosi lähteet ovat Julkaisufoorumin tasoluokituksessa alle tason 1." />
+    <title>Jufotarkistaja</title>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <h1>Jufotarkistaja</h1>
+        <p class="lede">
+          Liitä lähdeluettelosi ja tarkista, mitkä lähteistäsi jäävät Julkaisufoorumin tasoluokituksessa alle
+          tason 1. Näet sekä nykyisen että julkaisuvuoden tason.
+        </p>
+      </header>
+
+      <section class="input" id="input" aria-label="Lähdeluettelo">
+        <label for="refs">Liitä lähdeluettelo (APA tai Chicago) tai BibTeX-kirjasto</label>
+        <textarea id="refs" rows="10" spellcheck="false"></textarea>
+        <div class="actions">
+          <button id="check" type="button">Tarkista</button>
+          <p id="hint" role="alert" hidden></p>
+        </div>
+      </section>
+
+      <button id="edit" class="secondary" type="button" hidden>Muokkaa lähdeluetteloa</button>
+
+      <main id="results" aria-live="polite"></main>
+    </div>
+
+    <div class="horizon" aria-hidden="true">
+      <svg viewBox="0 80 1440 200" preserveAspectRatio="none" focusable="false">
+        <path class="ridge-1" d="M0,150 C140,105 250,95 370,120 S590,170 720,140 S930,70 1060,88 S1320,150 1440,120 V280 H0 Z" />
+        <path class="ridge-2" d="M0,195 C110,200 210,150 340,160 S580,215 710,200 S940,140 1080,152 S1330,205 1440,178 V280 H0 Z" />
+        <path class="ridge-3" d="M0,218 C150,188 270,228 410,222 S650,180 800,196 S1050,246 1190,226 S1380,200 1440,214 V280 H0 Z" />
+        <path class="ridge-4" d="M0,256 C170,236 310,264 470,258 S770,228 930,241 S1240,270 1440,246 V280 H0 Z" />
+      </svg>
+    </div>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <h2>Miten tämä palvelu toimii</h2>
+        <p class="footer-lede">
+          Selaimesi lähettää lähteiden tiedot kahteen ulkopuoliseen palveluun: Crossref kertoo, missä lähde
+          on julkaistu, ja Julkaisufoorumi antaa julkaisukanavan tason.
+        </p>
+        <p class="footer-lede">
+          Tähän palveluun ei tallenneta mitään. Lähdeluettelosi käsitellään omassa selaimessasi: palvelulla
+          ei ole tietokantaa, käyttäjätilejä, evästeitä eikä kävijäseurantaa, eikä selaimeesi tallenneta
+          mitään. Kun suljet sivun, luettelo ja tulokset katoavat.
+        </p>
+
+        <div class="footer-cols">
+          <section>
+            <h3>Mitä selaimestasi lähtee</h3>
+            <p>
+              <strong>Crossref</strong> saa lähteen DOI:n tai, jos sitä ei ole, koko viitteen tekstin. Sieltä
+              haetaan julkaisun tiedot: lehti, ISSN ja kustantaja.
+            </p>
+            <p>
+              <strong>Julkaisufoorumin rajapinta</strong> saa ISSN:n tai lehden, konferenssin tai kustantajan
+              nimen. Sieltä haetaan taso. Rajapintaa ylläpitää CSC osana opetus- ja kulttuuriministeriön
+              tutkimustietovarantoa.
+            </p>
+            <p>
+              Kumpikin näkee haun ja IP-osoitteesi ja käsittelee ne oman tietosuojailmoituksensa mukaan
+              (<a href="https://www.crossref.org/operations-and-sustainability/privacy/">Crossref</a>,
+              <a href="https://tiedejatutkimus.fi/fi/privacy">tutkimustietovaranto</a>).
+            </p>
+            <p>
+              Liitä kenttään siksi vain lähdeluettelo, ei muuta tekstiä. BibTeX-kirjastosta lähtee vain DOI,
+              ISSN ja julkaisupaikan nimi sekä tekijöistä, vuodesta ja otsikosta koottu viite – ei
+              tiivistelmiä, asiasanoja eikä muistiinpanoja.
+            </p>
+          </section>
+
+          <section>
+            <h3>Tulos on suuntaa antava</h3>
+            <p>
+              Tunnistus voi erehtyä, ja luokitukset muuttuvat. Merkintä ”tarkista” tarkoittaa, että kanava on
+              tunnistettu nimen perusteella; varmista se
+              <a href="https://jfp.csc.fi/">Jufo-portaalista</a>.
+            </p>
+            <p>Palvelu tarjotaan sellaisenaan ilman takuuta. Vastuu lähteiden arvioinnista on sinulla.</p>
+          </section>
+
+          <section>
+            <h3>Epävirallinen työkalu</h3>
+            <p>
+              Jufotarkistaja ei ole Julkaisufoorumin, Tieteellisten seurain valtuuskunnan, CSC:n eikä
+              Crossrefin palvelu.
+            </p>
+            <p>
+              Tasoluokitukset tulevat <a href="https://julkaisufoorumi.fi/">Julkaisufoorumista</a> ja
+              julkaisujen tiedot <a href="https://www.crossref.org/">Crossrefista</a>.
+            </p>
+          </section>
+        </div>
+
+        <p class="footer-source">
+          Lähdekoodi: <a href="https://github.com/ajlakanen/jufotarkistaja">GitHub</a> · CC BY-SA 4.0
+        </p>
+      </div>
+    </footer>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

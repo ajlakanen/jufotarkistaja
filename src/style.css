@@ -1,0 +1,462 @@
+/* Jufotarkistaja. Tulokset ladotaan kuin lähdeluettelo: antiikva, riippuva sisennys,
+   ja marginaalissa jokaisen lähteen Jufo-taso arvosanamerkinnän tapaan. */
+
+:root {
+  color-scheme: light;
+  --desk: #e9eef4;
+  --paper: #fbfcfe;
+  --ink: #14213d;
+  --ink-soft: #4a5873;
+  --rule: #c9d3e0;
+  --ok: #1f6f54;
+  --below: #b7322a;
+  --unsure: #8a5a00;
+  --absent: #5b6677;
+  --focus: #2456c8;
+  --footer-bg: #14213d;
+  --footer-ink: #f3f6fb;
+  --footer-soft: #bcc8dc;
+  --footer-rule: #34425f;
+  --ridge-1: #d2dcea;
+  --ridge-2: #a8b8d1;
+  --ridge-3: #6a7fa5;
+
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', 'URW Palladio L', Georgia, serif;
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+  --margin: 3.25rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --desk: #0e1524;
+    --paper: #162033;
+    --ink: #e7edf7;
+    --ink-soft: #a9b6cc;
+    --rule: #2d3b55;
+    --ok: #63c7a2;
+    --below: #ff8f84;
+    --unsure: #e5b454;
+    --absent: #9aa7bd;
+    --focus: #8fb2ff;
+    --footer-bg: #090e19;
+    --footer-ink: #e7edf7;
+    --footer-soft: #a9b6cc;
+    --footer-rule: #2d3b55;
+    --ridge-1: #1b2941;
+    --ridge-2: #152035;
+    --ridge-3: #0f1828;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Sarake, jotta alatunniste pysyy ikkunan alareunassa myös lyhyellä sivulla. */
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--desk);
+  color: var(--ink);
+  font: 1rem/1.5 var(--sans);
+}
+
+.page {
+  flex: 1;
+  width: 100%;
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 2.5rem 1rem 1.25rem;
+}
+
+h1 {
+  margin: 0;
+  font: 600 2.4rem/1.1 var(--serif);
+  letter-spacing: -0.01em;
+}
+
+.lede {
+  max-width: 34rem;
+  margin: 0.6rem 0 2rem;
+  color: var(--ink-soft);
+}
+
+/* Syöte */
+
+label {
+  display: block;
+  margin-bottom: 0.6rem;
+  font-weight: 600;
+}
+
+textarea {
+  display: block;
+  width: 100%;
+  min-height: 12rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 0.95rem/1.5 var(--serif);
+  resize: vertical;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-top: 0.75rem;
+}
+
+button {
+  padding: 0.6rem 1.25rem;
+  border: 1px solid var(--ink);
+  border-radius: 3px;
+  background: var(--ink);
+  color: var(--paper);
+  font: 600 1rem/1.2 var(--sans);
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+button:is(.retry, .secondary) {
+  padding: 0.35rem 0.8rem;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.875rem;
+}
+
+button:is(.retry, .secondary):hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+button.retry {
+  margin-top: 0.4rem;
+}
+
+/* hidden-attribuutti voittaa display-säännöt (esim. .actions on flex). */
+[hidden] {
+  display: none !important;
+}
+
+:is(button, textarea, a, summary):focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+#hint {
+  margin: 0;
+  color: var(--below);
+  font-weight: 600;
+}
+
+/* Tulokset */
+
+#results:not(:empty) {
+  margin-top: 2.5rem;
+}
+
+/* Kun syöttökenttä on piilossa, tulokset alkavat heti paluupainikkeen alta. */
+#edit:not([hidden]) + #results:not(:empty) {
+  margin-top: 1.25rem;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+/* Hakuja kesken: pyörivä rengas edistymisrivin edessä. */
+.spinner {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--rule);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Jos liike on pyydetty minimiin, rengas sykkii pyörimisen sijaan. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    border-color: var(--ink);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    50% {
+      opacity: 0.25;
+    }
+  }
+}
+
+.progress {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary {
+  margin: 0.15rem 0 0;
+  font: 600 1.15rem/1.35 var(--serif);
+}
+
+.group {
+  margin-top: 2.25rem;
+}
+
+.group h2,
+.group summary {
+  margin: 0;
+  padding-bottom: 0.4rem;
+  border-bottom: 2px solid var(--ink);
+  font: 600 1.3rem/1.25 var(--serif);
+}
+
+.group summary {
+  cursor: pointer;
+}
+
+.group-note {
+  max-width: 38rem;
+  margin: 0.6rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.group ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Yksi lähde: marginaalissa taso tai tilan merkki, vieressä viite ja selitykset. */
+
+.result {
+  position: relative;
+  min-height: 3.5rem;
+  padding: 1rem 0 1rem var(--margin);
+  border-bottom: 1px solid var(--rule);
+}
+
+.result::before {
+  content: attr(data-mark);
+  position: absolute;
+  top: 0.7rem;
+  left: 0;
+  width: calc(var(--margin) - 0.9rem);
+  color: var(--mark, var(--absent));
+  font: 600 2rem/1 var(--serif);
+  text-align: center;
+}
+
+.result[data-status='ok'] {
+  --mark: var(--ok);
+}
+
+.result[data-status='below'],
+.result[data-status='error'] {
+  --mark: var(--below);
+}
+
+.result[data-status='conflict'] {
+  --mark: var(--unsure);
+}
+
+.result p {
+  margin: 0;
+}
+
+.result .reference {
+  padding-left: 1.5em;
+  font: 1rem/1.55 var(--serif);
+  text-indent: -1.5em;
+  overflow-wrap: anywhere;
+}
+
+/* BibTeX-tietueen avain viitteen edessä, jotta lähteen löytää kirjastosta. */
+.result .reference .key {
+  margin-right: 0.15em;
+  padding: 0.05em 0.4em;
+  border: 1px solid var(--rule);
+  border-radius: 0.25rem;
+  color: var(--ink-soft);
+  font: 0.8rem/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.result :is(.channel, .levels, .levels-note, .explanation, .candidates, .note, .notice, .error) {
+  margin-top: 0.3rem;
+  font-size: 0.9rem;
+}
+
+.result .channel {
+  margin-top: 0.6rem;
+}
+
+.result :is(.levels-note, .note, .candidates) {
+  color: var(--ink-soft);
+}
+
+.result :is(.notice, .error) {
+  color: var(--mark);
+  font-weight: 600;
+}
+
+.result .notice::before {
+  content: '⚠ ';
+}
+
+/* Varmuus erottuu muodolla, ei vain värillä: "tarkista" on kehystetty. */
+
+.confidence-varma {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.confidence-tarkista {
+  padding: 0 0.35em;
+  border: 1px dashed var(--unsure);
+  border-radius: 2px;
+  color: var(--unsure);
+  font-weight: 600;
+}
+
+a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+}
+
+/* Taustamaisema sisällön ja alatunnisteen välissä: vaarat tummuvat kerros kerrokselta,
+   ja lähin harjanne on alatunnisteen värinen, joten alatunniste nousee maisemasta.
+   Kuvio venyy ikkunan levyiseksi. */
+
+.horizon {
+  height: clamp(5.5rem, 10vw, 9rem);
+  margin-bottom: -1px;
+}
+
+.horizon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ridge-1 {
+  fill: var(--ridge-1);
+}
+
+.ridge-2 {
+  fill: var(--ridge-2);
+}
+
+.ridge-3 {
+  fill: var(--ridge-3);
+}
+
+.ridge-4 {
+  fill: var(--footer-bg);
+}
+
+/* Alatunniste: koko sivun levyinen tumma kaista, jossa lupaus tallentamattomuudesta
+   on ladottu otsikoksi ja tarkennukset kolmeen palstaan sen alle. */
+
+.site-footer {
+  --focus: #8fb2ff;
+  background: var(--footer-bg);
+  color: var(--footer-soft);
+}
+
+.footer-inner {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+.site-footer h2 {
+  margin: 0;
+  color: var(--footer-ink);
+  font: 600 clamp(1.5rem, 1.2rem + 1.5vw, 2rem) / 1.15 var(--serif);
+  letter-spacing: -0.015em;
+}
+
+.footer-lede {
+  max-width: 36rem;
+  margin: 1rem 0 0;
+  color: var(--footer-ink);
+  font: 1.15rem/1.5 var(--serif);
+}
+
+.footer-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 2rem 2.25rem;
+  margin-top: 2.75rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--footer-rule);
+  font-size: 0.9rem;
+}
+
+.site-footer h3 {
+  margin: 0 0 0.5rem;
+  color: var(--footer-ink);
+  font: 600 1.1rem/1.25 var(--serif);
+}
+
+.footer-cols p {
+  margin: 0 0 0.6rem;
+}
+
+.footer-cols p:last-child {
+  margin-bottom: 0;
+}
+
+.footer-source {
+  margin: 2.25rem 0 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--footer-rule);
+  font-size: 0.85rem;
+}
+
+.site-footer :is(a, strong) {
+  color: var(--footer-ink);
+}
+
+@media (max-width: 30rem) {
+  .footer-inner {
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  :root {
+    --margin: 2.4rem;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  .result::before {
+    font-size: 1.6rem;
+  }
+}
