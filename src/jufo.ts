@@ -33,9 +33,11 @@ export function parseChannel(raw: unknown): JufoChannel {
   const type = isRecord(raw.type) && typeof raw.type.id === 'string' ? TYPES[raw.type.id] : undefined;
   if (!type) throw new JufoFormatError(`Tuntematon kanavatyyppi kanavalla ${jufoId}`);
 
-  if (!isRecord(raw.level_history)) throw new JufoFormatError(`level_history ei ole olio kanavalla ${jufoId}`);
+  // Vasta lisätyllä kanavalla, jonka arvio on tulossa, historiaa ei ole: kenttä on null.
+  const rawHistory = raw.level_history ?? {};
+  if (!isRecord(rawHistory)) throw new JufoFormatError(`level_history ei ole olio kanavalla ${jufoId}`);
   const history: Record<number, LevelReading> = {};
-  for (const [year, value] of Object.entries(raw.level_history)) {
+  for (const [year, value] of Object.entries(rawHistory)) {
     if (!/^\d{4}$/.test(year)) throw new JufoFormatError(`Odottamaton vuosi tasohistoriassa: ${year}`);
     history[Number(year)] = readHistoryLevel(value);
   }

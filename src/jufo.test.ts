@@ -23,6 +23,11 @@ it('parseChannel: Nature, Tammi, Communications sustainability', () => {
   expect(parseChannel(tammi[0])).toMatchObject({ jufoId: 7269, type: 'bookpublisher', otherTitles: ['Kustannusosakeyhtiö Tammi'], issns: [] });
   expect(parseChannel(commSust[0]).history[2025]).toEqual({ kind: 'unrated' });
 });
+it('parseChannel: vasta lisätyllä kanavalla ei ole tasohistoriaa (level_history: null)', () => {
+  // Jufo 94087 (ISMAR), lisätty 20.5.2026: arvio on vasta tulossa (level_pending).
+  const c = parseChannel({ ...sustainability[0], jufo_id: 94087, level: null, level_history: null, level_pending: 2 });
+  expect(c).toMatchObject({ jufoId: 94087, level: { kind: 'none' }, history: {} });
+});
 it('parseChannel hylkää odottamattoman muodon', () => {
   const base = sustainability[0];
   expect(() => parseChannel({ ...base, level: 'x' })).toThrow(JufoFormatError);
