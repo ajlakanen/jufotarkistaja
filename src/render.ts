@@ -1,6 +1,7 @@
 // Tulosten piirto DOM:iin. Kaikki käyttäjän ja rajapintojen teksti viedään
 // sivulle textContentilla, ei koskaan HTML:nä.
 import { FIRST_HISTORY_YEAR, formatAtPublication, formatCurrent } from './levels';
+import { findDoi } from './parse';
 import type { Assessment, ChannelType, CheckResult, Confidence, JufoChannel, ParsedReference, ResultNote } from './types';
 
 export const JUFO_PORTAL = 'https://jfp.csc.fi/jufoportaali?Jufo_ID=';
@@ -92,11 +93,7 @@ function channelLine(label: string, channel: JufoChannel, confidence: Confidence
   const line = el('p', 'channel');
   line.append(`${label}: `, el('strong', undefined, channel.title), showType ? ` (${TYPE_LABELS[channel.type]}) · ` : ' · ');
   line.append(el('span', `confidence confidence-${confidence}`, confidence), ' · ');
-  const link = el('a', undefined, 'avaa Jufo-portaalissa');
-  link.href = `${JUFO_PORTAL}${channel.jufoId}`;
-  link.target = '_blank';
-  link.rel = 'noopener';
-  line.append(link);
+  line.append(externalLink('avaa Jufo-portaalissa', `${JUFO_PORTAL}${channel.jufoId}`));
   return line;
 }
 
@@ -112,12 +109,55 @@ function levelLines(assessment: Assessment, pubYear: number | null): HTMLElement
   return [el('p', 'levels', now), el('p', 'levels-note', why)];
 }
 
+function externalLink(text: string, href: string): HTMLAnchorElement {
+  const link = el('a', undefined, text);
+  link.href = href;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  return link;
+}
+
+const LINKABLE = /https?:\/\/[^\s"<>]+|\bdoi:\s*10\.\d{4,9}\/[^\s"<>]+|\b10\.\d{4,9}\/[^\s"<>]+/gi;
+const DOI_ADDRESS = /^(?:https?:\/\/(?:dx\.)?doi\.org\/|doi:|10\.)/i;
+
+/** Osoitetta seuraava välimerkki kuuluu virkkeeseen, ei osoitteeseen. Sulku kuuluu osoitteeseen vain parinsa kanssa. */
+function withoutTrailingPunctuation(address: string): string {
+  let end = address.length;
+  while (end > 0) {
+    const last = address[end - 1]!;
+    const stray = last === ')' ? !address.slice(0, end - 1).includes('(') : /[.,;:”’'»\]]/.test(last);
+    if (!stray) break;
+    end--;
+  }
+  return address.slice(0, end);
+}
+
+/**
+ * Viitteen teksti, jossa verkko-osoitteet ja DOI:t ovat linkkejä. DOI viedään aina doi.orgiin,
+ * joten linkki toimii, vaikka viitteessä olisi "doi:10.…" tai kahdentunut "https://doi.org/https://doi.org/…".
+ */
+function linkedText(raw: string): Array<string | HTMLAnchorElement> {
+  const nodes: Array<string | HTMLAnchorElement> = [];
+  let last = 0;
+  for (const match of raw.matchAll(LINKABLE)) {
+    const address = withoutTrailingPunctuation(match[0]);
+    const doi = DOI_ADDRESS.test(address) ? findDoi(address) : null;
+    const href = doi ? `https://doi.org/${doi.replace(/[#?]/g, encodeURIComponent)}` : address;
+    if (!/^https?:\/\//i.test(href)) continue;
+    nodes.push(raw.slice(last, match.index), externalLink(address, href));
+    last = match.index + address.length;
+  }
+  nodes.push(raw.slice(last));
+  return nodes.filter((node) => node !== '');
+}
+
 /** Yksi lähde. `mark` näytetään marginaalissa: nykyinen taso tai tilan merkki. */
 function referenceItem(ref: ShownReference, status: Status, mark: string, ...children: HTMLElement[]): HTMLLIElement {
   const item = el('li', 'result');
   item.dataset.status = status;
   item.dataset.mark = mark;
-  const reference = el('p', 'reference', ref.raw);
+  const reference = el('p', 'reference');
+  reference.append(...linkedText(ref.raw));
   if (ref.key) {
     const key = el('span', 'key', ref.key);
     key.dataset.role = 'key';
