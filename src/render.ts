@@ -97,16 +97,23 @@ function channelLine(label: string, channel: JufoChannel, confidence: Confidence
   return line;
 }
 
-function levelLines(assessment: Assessment, pubYear: number | null): HTMLElement[] {
+/**
+ * Tasorivi ja tarvittaessa selitys puuttuvalle julkaisuvuoden tasolle.
+ * Huomautus kertoo samat tasot kuin tasorivi, joten `notice` näytetään rivin paikalla eikä sen lisäksi.
+ */
+function levelLines(assessment: Assessment, pubYear: number | null, notice: string | null = null): HTMLElement[] {
+  const levelLine = (text: string) => (notice ? el('p', 'notice', notice) : el('p', 'levels', text));
   const now = `Nyt: ${formatCurrent(assessment.current)}`;
   if (assessment.atPublication !== null && pubYear !== null) {
-    return [el('p', 'levels', `${now} · Julkaisuvuonna ${pubYear}: ${formatAtPublication(assessment.atPublication, pubYear)}`)];
+    return [levelLine(`${now} · Julkaisuvuonna ${pubYear}: ${formatAtPublication(assessment.atPublication, pubYear)}`)];
   }
   const why =
     assessment.publicationNote === 'before-2012' && pubYear !== null
       ? `Julkaisuvuoden ${pubYear} tasoa ei ole (luokitus alkaa vuodesta ${FIRST_HISTORY_YEAR})`
       : 'Julkaisuvuotta ei tunnistettu; verrattu vain nykyiseen tasoon';
-  return [el('p', 'levels', now), el('p', 'levels-note', why)];
+  const first = assessment.firstRated;
+  const levels = first ? `${now} · Ensimmäinen arvioitu taso (${first.year}): ${formatAtPublication(first.level, first.year)}` : now;
+  return [levelLine(levels), el('p', 'levels-note', why)];
 }
 
 function externalLink(text: string, href: string): HTMLAnchorElement {
@@ -170,12 +177,14 @@ function referenceItem(ref: ShownReference, status: Status, mark: string, ...chi
 function singleItem(ref: ShownReference, result: Single): HTMLLIElement {
   const lines = [
     channelLine('Kanava', result.channel, result.confidence),
-    ...levelLines(result.assessment, result.pubYear),
+    ...levelLines(result.assessment, result.pubYear, result.assessment.notice),
   ];
-  if (result.assessment.notice) lines.push(el('p', 'notice', result.assessment.notice));
   if (result.note) lines.push(el('p', 'note', NOTE_TEXTS[result.note]));
   const current = result.assessment.current;
-  return referenceItem(ref, result.status, current.kind === 'level' ? String(current.level) : '–', ...lines);
+  const item = referenceItem(ref, result.status, current.kind === 'level' ? String(current.level) : '–', ...lines);
+  // Kunnossa, mutta huomautuksen kanssa: merkki ja huomautus näytetään varoitusvärillä.
+  if (result.status === 'ok' && result.assessment.notice) item.dataset.caution = 'true';
+  return item;
 }
 
 function conflictItem(ref: ShownReference, result: Conflict): HTMLLIElement {

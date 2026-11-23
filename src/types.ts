@@ -49,6 +49,9 @@ export interface Assessment {
   current: LevelReading;
   atPublication: LevelReading | null;                    // null = ei vertailua
   publicationNote: 'before-2012' | 'year-unknown' | null;
+  // Ennen vuotta 2012 julkaistun lähteen vertailukohta: kanavan ensimmäinen arvioitu vuosi ja sen taso.
+  // null = julkaisuvuosi on tasohistorian ajalta tai tuntematon, tai kanavalla ei ole arvioituja vuosia.
+  firstRated: { year: number; level: LevelReading } | null;
   below: boolean;
   notice: string | null;
 }

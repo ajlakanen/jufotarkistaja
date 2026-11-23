@@ -65,15 +65,42 @@ function noticeFor(current: LevelReading, atPublication: LevelReading, year: num
   return `Taso on poistunut julkaisun jälkeen (julkaisuvuonna ${year} ${then}).`;
 }
 
+/** Tasohistorian ensimmäinen vuosi, jolta kanavalla on arvio (taso tai "ei tasoluokkaa"). */
+function firstRating(history: JufoChannel['history']): Assessment['firstRated'] {
+  const year = Object.keys(history).map(Number).sort((a, b) => a - b).find((y) => history[y]!.kind !== 'unrated');
+  return year === undefined ? null : { year, level: history[year]! };
+}
+
+/** Huomautus, kun nykyinen taso poikkeaa ensimmäisestä arviosta. Koskee ennen vuotta 2012 julkaistuja. */
+function changeSinceFirstRating(current: LevelReading, first: NonNullable<Assessment['firstRated']>): string | null {
+  const { year, level: then } = first;
+  if (current.kind === 'level' && then.kind === 'level') {
+    if (current.level === then.level) return null;
+    const direction = current.level > then.level ? 'noussut' : 'laskenut';
+    return `Kanava on ${direction} tasolta ${then.level} tasolle ${current.level} ensimmäisen arvioinnin (${year}) jälkeen.`;
+  }
+  if (current.kind === then.kind) return null;
+  const was = `vuonna ${year} ${formatAtPublication(then, year)}`;
+  return current.kind === 'level'
+    ? `Kanava on noussut tasolle ${current.level} ensimmäisen arvioinnin jälkeen (${was}).`
+    : `Taso on poistunut ensimmäisen arvioinnin jälkeen (${was}).`;
+}
+
 export function assess(channel: Pick<JufoChannel, 'level' | 'history'>, pubYear: number | null): Assessment {
   const current = channel.level;
-  if (pubYear === null || pubYear < FIRST_HISTORY_YEAR) {
+  if (pubYear === null) {
+    return { current, atPublication: null, publicationNote: 'year-unknown', firstRated: null, below: current.kind !== 'level', notice: null };
+  }
+  if (pubYear < FIRST_HISTORY_YEAR) {
+    // Julkaisuvuoden tasoa ei ole. Ensimmäinen arvio on lähin tieto siitä, mikä kanava julkaisuhetkellä oli.
+    const firstRated = firstRating(channel.history);
     return {
       current,
       atPublication: null,
-      publicationNote: pubYear === null ? 'year-unknown' : 'before-2012',
-      below: current.kind !== 'level',
-      notice: null,
+      publicationNote: 'before-2012',
+      firstRated,
+      below: current.kind !== 'level' || (firstRated !== null && firstRated.level.kind !== 'level'),
+      notice: firstRated ? changeSinceFirstRating(current, firstRated) : null,
     };
   }
   const atPublication = levelAtPublication(channel, pubYear);
@@ -82,6 +109,7 @@ export function assess(channel: Pick<JufoChannel, 'level' | 'history'>, pubYear:
     current,
     atPublication,
     publicationNote: null,
+    firstRated: null,
     below,
     notice: below ? noticeFor(current, atPublication, pubYear) : null,
   };

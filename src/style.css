@@ -280,7 +280,8 @@ button.retry {
   --mark: var(--below);
 }
 
-.result[data-status='conflict'] {
+.result[data-status='conflict'],
+.result[data-status='ok'][data-caution] {
   --mark: var(--unsure);
 }
 

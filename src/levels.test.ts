@@ -22,7 +22,7 @@ const sustainability = { level: NONE, history: { 2019: L(1), 2022: L(1), 2023: N
 const risen = { level: L(1), history: { 2015: NONE, 2025: UNRATED, 2026: L(1) } };
 
 it('taso poistunut julkaisun jälkeen', () => {
-  expect(assess(sustainability, 2019)).toEqual({ current: NONE, atPublication: L(1), publicationNote: null, below: true,
+  expect(assess(sustainability, 2019)).toEqual({ current: NONE, atPublication: L(1), publicationNote: null, firstRated: null, below: true,
     notice: 'Taso on poistunut julkaisun jälkeen (julkaisuvuonna 2019 taso 1).' });
 });
 it('molemmat ilman tasoa → ei huomautusta', () => {
@@ -43,10 +43,41 @@ it('vuosi puuttuu historiasta → ei arvioitu', () => {
 });
 it('ennen 2012, tuntematon vuosi ja tuleva vuosi', () => {
   const ch = { level: L(2), history: { 2012: L(2), 2026: L(2) } };
-  expect(assess(ch, 2006)).toEqual({ current: L(2), atPublication: null, publicationNote: 'before-2012', below: false, notice: null });
-  expect(assess(ch, null)).toMatchObject({ atPublication: null, publicationNote: 'year-unknown', below: false });
-  expect(assess(ch, 2027)).toMatchObject({ atPublication: L(2), below: false });   // historian jälkeen → nykyinen
-  expect(assess(sustainability, 2006)).toMatchObject({ below: true, notice: null });
+  expect(assess(ch, 2006)).toEqual({ current: L(2), atPublication: null, publicationNote: 'before-2012',
+    firstRated: { year: 2012, level: L(2) }, below: false, notice: null });
+  expect(assess(ch, null)).toMatchObject({ atPublication: null, publicationNote: 'year-unknown', firstRated: null, below: false });
+  expect(assess(ch, 2027)).toMatchObject({ atPublication: L(2), firstRated: null, below: false });   // historian jälkeen → nykyinen
+});
+
+describe('ennen vuotta 2012 julkaistu: vertailukohta on ensimmäinen arvioitu taso', () => {
+  const sage = { level: L(3), history: { 2012: L(2), 2014: L(2), 2015: L(3), 2026: L(3) } };
+
+  it('taso noussut ensimmäisestä arviosta → kunnossa, mutta huomautus', () => {
+    expect(assess(sage, 1995)).toEqual({ current: L(3), atPublication: null, publicationNote: 'before-2012',
+      firstRated: { year: 2012, level: L(2) }, below: false,
+      notice: 'Kanava on noussut tasolta 2 tasolle 3 ensimmäisen arvioinnin (2012) jälkeen.' });
+  });
+  it('taso laskenut ensimmäisestä arviosta → kunnossa, mutta huomautus', () => {
+    expect(assess({ level: L(1), history: { 2012: L(2), 2026: L(1) } }, 2001)).toMatchObject({ below: false,
+      notice: 'Kanava on laskenut tasolta 2 tasolle 1 ensimmäisen arvioinnin (2012) jälkeen.' });
+  });
+  it('ensimmäinen arvio oli taso 0 → alle tason 1, vaikka nyt on taso', () => {
+    expect(assess({ level: L(1), history: { 2012: NONE, 2020: L(1), 2026: L(1) } }, 2005)).toMatchObject({
+      firstRated: { year: 2012, level: NONE }, below: true,
+      notice: 'Kanava on noussut tasolle 1 ensimmäisen arvioinnin jälkeen (vuonna 2012 taso 0).' });
+  });
+  it('taso poistunut ensimmäisen arvion jälkeen', () => {
+    expect(assess(sustainability, 2006)).toMatchObject({ firstRated: { year: 2019, level: L(1) }, below: true,
+      notice: 'Taso on poistunut ensimmäisen arvioinnin jälkeen (vuonna 2019 taso 1).' });
+  });
+  it('ei arvioidut vuodet ohitetaan: ensimmäinen arvio voi olla vuotta 2012 myöhempi', () => {
+    expect(assess({ level: L(1), history: { 2012: UNRATED, 2013: UNRATED, 2018: L(1), 2026: L(1) } }, 2003))
+      .toMatchObject({ firstRated: { year: 2018, level: L(1) }, below: false, notice: null });
+  });
+  it('ei yhtään arvioitua vuotta → verrataan vain nykyiseen tasoon', () => {
+    expect(assess({ level: L(1), history: { 2012: UNRATED } }, 2003)).toMatchObject({ firstRated: null, below: false, notice: null });
+    expect(assess({ level: NONE, history: {} }, 2003)).toMatchObject({ firstRated: null, below: true, notice: null });
+  });
 });
 it('molemmat vähintään 1 mutta eri → kunnossa, ei huomautusta', () => {
   expect(assess({ level: L(2), history: { 2020: L(3), 2026: L(2) } }, 2020)).toMatchObject({ below: false, notice: null });
